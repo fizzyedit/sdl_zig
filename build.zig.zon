@@ -5,11 +5,11 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         // fizzyedit/SDL: release-3.4.16 with fizzy's patches on top (branch `fizzy-3.4`, tag
-        // `fizzy-3.4.16-3`). Pinned by commit; the tag keeps it reachable. `.version` is still the
+        // `fizzy-3.4.16-4`). Pinned by commit; the tag keeps it reachable. `.version` is still the
         // SDL release it is based on: `build.zig` reads it for the library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/8455e58994c5b1993118072f4562ba374a95c268.tar.gz",
-            .hash = "N-V-__8AAJMx-AJFpozOU2SXzqtvh833ed2sKnvTNi8RmZnQ",
+            .url = "https://github.com/fizzyedit/SDL/archive/2d6efde9cda62abb61d7cbe51989fe397d0a209d.tar.gz",
+            .hash = "N-V-__8AABJV-AI0Bepdh5Gmo3oU5WHHQiYUPXZ6FLGuu1Fk",
             .version = "3.4.16",
         },
         .dbus = .{
