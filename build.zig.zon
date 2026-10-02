@@ -9,8 +9,8 @@
         // the commit reachable until it is tagged. `.version` is still the SDL release it is based
         // on: `build.zig` reads it for the library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/80bdc7d3f8098d41408529424fe54dbc024bb2dd.tar.gz",
-            .hash = "N-V-__8AABYw-ALMzpIoozqaBcNETKOUyoCH_q8V_pQrKVUQ",
+            .url = "https://github.com/fizzyedit/SDL/archive/8455e58994c5b1993118072f4562ba374a95c268.tar.gz",
+            .hash = "N-V-__8AAJMx-AJFpozOU2SXzqtvh833ed2sKnvTNi8RmZnQ",
             .version = "3.4.16",
         },
         .dbus = .{
