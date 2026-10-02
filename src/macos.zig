@@ -10,10 +10,17 @@ pub fn build(
     target: std.Target,
     lib: *std.Build.Step.Compile,
     build_config_h: *std.Build.Step.ConfigHeader,
+    paths: root.SystemPaths,
 ) void {
     _ = target;
 
     const upstream = b.dependency("sdl", .{});
+
+    // Zig finds the macOS SDK itself only for the native target; an explicit `-Dtarget=*-macos`
+    // (a universal build's second architecture, say) needs it passed in, as iOS always does.
+    if (paths.include) |p| lib.root_module.addSystemIncludePath(p);
+    if (paths.framework) |p| lib.root_module.addSystemFrameworkPath(p);
+    if (paths.library) |p| lib.root_module.addLibraryPath(p);
 
     // Add the platform specific dependency include paths
     lib.root_module.addIncludePath(b.dependency("egl", .{}).path("api"));
