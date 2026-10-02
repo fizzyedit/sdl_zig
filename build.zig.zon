@@ -4,12 +4,13 @@
     .version = "1.0.3+3.4.16",
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
-        // fizzyedit/SDL: release-3.4.16 with fizzy's patches on top (branch `fizzy-3.4`, tag
-        // `fizzy-3.4.16-2`). Pinned by commit; the tag keeps it reachable. `.version` is still the
-        // SDL release it is based on: `build.zig` reads it for the library's SO version.
+        // fizzyedit/SDL: release-3.4.16 with fizzy's patches on top — here the test branch
+        // `claude/macos-live-resize` (`fizzy-3.4` plus the macOS live-resize patches), which keeps
+        // the commit reachable until it is tagged. `.version` is still the SDL release it is based
+        // on: `build.zig` reads it for the library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/3d6e802c458d2ee1fc33d5ec29ba6385f34c32f7.tar.gz",
-            .hash = "N-V-__8AAO4Q-ALlG5wRtmvM6s5Fg5YypHRpY5CqypXoj8rv",
+            .url = "https://github.com/fizzyedit/SDL/archive/80bdc7d3f8098d41408529424fe54dbc024bb2dd.tar.gz",
+            .hash = "N-V-__8AABYw-ALMzpIoozqaBcNETKOUyoCH_q8V_pQrKVUQ",
             .version = "3.4.16",
         },
         .dbus = .{
