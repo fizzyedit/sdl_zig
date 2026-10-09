@@ -234,4 +234,5 @@ const sdl_test_sources = [_][]const u8{
 const fizzy_test_sources = [_][]const u8{
     "testfizzy.c",
     "testautomation_fizzy_gpu.c",
+    "testautomation_fizzy_xkb.c",
 };

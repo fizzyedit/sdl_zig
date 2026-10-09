@@ -182,3 +182,67 @@ jobs:
 
       - name: Run test-fizzy
         run: zig build test-fizzy --summary all -- ${{ steps.probe.outputs.args }}
+
+  # fizzyedit/SDL's FizzyXkb suite: SDL's Wayland driver loads, and builds its keymap's modifier
+  # levels right, on the oldest supported distribution as well as a current one. This package
+  # builds SDL against libxkbcommon 1.13's headers; Ubuntu 24.04 ships libxkbcommon 1.6, which
+  # lacks `xkb_keymap_mod_get_mask` (1.10), 26.04 has 1.13. So 24.04 runs SDL's fallback that
+  # builds the modifier masks from their indices, and 26.04 the 1.10 path.
+  #
+  # Weston runs on its X11 backend inside Xvfb rather than headless: the headless backend has
+  # no seat, the X11 one has a keyboard with the X server's layout, and the suite checks German
+  # (de) levels.
+  test-fizzy-xkb:
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: ["ubuntu:24.04", "ubuntu:26.04"]
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro }}
+    steps:
+      - name: Install tools, Xvfb and weston
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git xz-utils \
+            xvfb xauth x11-xkb-utils x11-xserver-utils xkb-data weston \
+            libx11-6 libxext6 libxrandr2 libxcursor1 libxi6 libxfixes3 libxss1 libxtst6 \
+            libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0 libdecor-0-0
+          dpkg-query -W libxkbcommon0 libwayland-client0 weston
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Workaround Zig 0.16.0 ZIP unpack failure
+        # https://codeberg.org/ziglang/zig/issues/31964
+        run: mkdir -p "${ZIG_GLOBAL_CACHE_DIR}/tmp"
+
+      - name: Build test-fizzy
+        run: zig build test-fizzy --summary all -- --list
+
+      - name: Run FizzyXkb on Wayland (weston's X11 backend in Xvfb, de layout)
+        env:
+          DISPLAY: ":99"
+          WAYLAND_DISPLAY: wayland-fizzy
+          FIZZY_TEST_XKB_LAYOUT: de
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          Xvfb "$DISPLAY" -screen 0 1280x1024x24 -nolisten tcp -noreset &
+          xvfb_pid=$!
+          for i in $(seq 50); do xset q >/dev/null 2>&1 && break; sleep 0.1; done
+          # Weston's X11 backend builds its keymap from the layout setxkbmap sets on the root
+          # window. -noreset, or Xvfb resets the layout each time its last client disconnects.
+          setxkbmap -layout de
+          setxkbmap -query
+          weston --backend=x11 --renderer=pixman --width=1024 --height=768 \
+            --socket="$WAYLAND_DISPLAY" --idle-time=0 &
+          weston_pid=$!
+          for i in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+          zig build test-fizzy --summary all -- --filter FizzyXkb
+          kill "$weston_pid" "$xvfb_pid"
