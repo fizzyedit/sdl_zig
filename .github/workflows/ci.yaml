@@ -123,6 +123,61 @@ jobs:
           zig build test-fizzy --summary all -- --require-gpu vulkan
           kill "$weston_pid"
 
+  # fizzyedit/SDL's suite for patch 6, Wayland frame insets (`FizzyWayland`). It reads the requests
+  # SDL sends from libwayland's own trace (WAYLAND_DEBUG), so it needs a real compositor: weston's
+  # headless backend, with its default desktop shell, which maximizes and fullscreens. At output
+  # scale 1 and 2, as the insets are in window coordinates whatever the scale. lavapipe presents
+  # the frames that map the windows. Ubuntu 26.04 for the same libxkbcommon reason as above.
+  test-fizzy-wayland-insets:
+    strategy:
+      fail-fast: false
+      matrix:
+        scale: [1, 2]
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    steps:
+      - name: Install tools, lavapipe and weston
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git xz-utils \
+            mesa-vulkan-drivers libvulkan1 weston \
+            libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0
+          dpkg-query -W libwayland-client0 mesa-vulkan-drivers weston
+          echo "VK_DRIVER_FILES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -n 1)" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Workaround Zig 0.16.0 ZIP unpack failure
+        # https://codeberg.org/ziglang/zig/issues/31964
+        run: mkdir -p "${ZIG_GLOBAL_CACHE_DIR}/tmp"
+
+      - name: Build test-fizzy
+        run: zig build test-fizzy --summary all -- --list
+
+      - name: Run FizzyWayland under headless weston (scale ${{ matrix.scale }})
+        env:
+          SDL_VIDEO_DRIVER: wayland
+          WAYLAND_DISPLAY: wayland-fizzy
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless --scale=${{ matrix.scale }} --socket="$WAYLAND_DISPLAY" --idle-time=0 > weston.log 2>&1 &
+          weston_pid=$!
+          for i in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+          status=0
+          zig build test-fizzy --summary all -- --filter FizzyWayland || status=$?
+          kill "$weston_pid" || true
+          echo "--- weston.log"
+          cat weston.log
+          exit "$status"
+
   # Do GitHub's hosted macOS runners have a Metal device? The probe says, and the suite requires
   # Metal wherever the probe found one, so a runner with Metal can't skip the Metal tests. (On
   # macos-14, MTLCreateSystemDefaultDevice() is nil from a command-line tool though

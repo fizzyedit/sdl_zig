@@ -5,14 +5,13 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         // fizzyedit/SDL: release-3.4.16 with fizzy's patches on top. TEST PIN: branch
-        // `wayland/xkb-mod-mask-optional`, `fizzy-3.4` (tag `fizzy-3.4.16-6`) plus the suite for
-        // the Wayland driver on an older libxkbcommon and patch 8 making `xkb_keymap_mod_get_mask`
-        // optional at runtime, untagged until it is reviewed and moved onto `fizzy-3.4`. Pinned by
-        // commit. `.version` is still the SDL release it is based on: `build.zig` reads it for
-        // the library's SO version.
+        // `test/fizzy-wayland-insets`, `fizzy-3.4` (tag `fizzy-3.4.16-7`) plus the test suite for
+        // patch 6, untagged until it is reviewed and moved onto `fizzy-3.4`. Pinned by commit.
+        // `.version` is still the SDL release it is based on: `build.zig` reads it for the
+        // library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/36dda37b20cb70ce0feb79ba1340858e9cd41ac5.tar.gz",
-            .hash = "N-V-__8AANe4-AK4xmMHFWdXiPun3hihTxQJCHKC4gmCsDEQ",
+            .url = "https://github.com/fizzyedit/SDL/archive/a518aaf9e3b915330c5ae80771efbbca5523d29e.tar.gz",
+            .hash = "N-V-__8AAMhY-QJGBfy_DcJQIubyngZlFT5ebaIR5IU4MxCS",
             .version = "3.4.16",
         },
         .dbus = .{
