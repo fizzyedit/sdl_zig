@@ -5,13 +5,13 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         // fizzyedit/SDL: release-3.4.16 with fizzy's patches on top. TEST PIN: branch
-        // `test/fizzy-wayland-insets`, `fizzy-3.4` (tag `fizzy-3.4.16-7`) plus the test suite for
-        // patch 6, untagged until it is reviewed and moved onto `fizzy-3.4`. Pinned by commit.
-        // `.version` is still the SDL release it is based on: `build.zig` reads it for the
-        // library's SO version.
+        // `wayland/frame-insets-fixes`, `fizzy-3.4` (tag `fizzy-3.4.16-8`) plus the fixes to patch 6
+        // from fizzyedit/fizzy#280 (C2b) and their tests, untagged until it is reviewed and moved onto
+        // `fizzy-3.4`. Pinned by commit. `.version` is still the SDL release it is based on:
+        // `build.zig` reads it for the library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/a518aaf9e3b915330c5ae80771efbbca5523d29e.tar.gz",
-            .hash = "N-V-__8AAMhY-QJGBfy_DcJQIubyngZlFT5ebaIR5IU4MxCS",
+            .url = "https://github.com/fizzyedit/SDL/archive/011a2dc5a28e9191426138f6f76b07559862be9d.tar.gz",
+            .hash = "N-V-__8AAMaj-QLJ5JN7pQJDileI_owA6_YLRwYo85SyzNim",
             .version = "3.4.16",
         },
         .dbus = .{
