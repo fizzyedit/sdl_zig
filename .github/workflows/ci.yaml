@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - fizzy
   pull_request:
     branches:
       - main
+      - fizzy
   workflow_dispatch:
 
 jobs:
@@ -54,3 +56,129 @@ jobs:
         run: |
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           zig build -Dtarget=aarch64-ios -Dinclude_path="$SDK/usr/include" -Dframework_path="$SDK/System/Library/Frameworks" --summary all
+
+  # fizzyedit/SDL's suites for fizzy's patches (`zig build test-fizzy`). Vulkan is Mesa's software
+  # driver, lavapipe, on a display with no screen: Xvfb for X11, headless weston for Wayland.
+  #
+  # In an Ubuntu 26.04 container, not on the 24.04 runner: this package builds SDL against
+  # libxkbcommon 1.13's headers, so SDL's Wayland driver needs `xkb_keymap_mod_get_mask` (1.10+)
+  # at run time, and 24.04 ships libxkbcommon 1.6. There the Wayland driver doesn't load.
+  test-fizzy-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        video: [x11, wayland]
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    steps:
+      - name: Install tools, lavapipe and a headless display
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git xz-utils \
+            mesa-vulkan-drivers libvulkan1 vulkan-tools \
+            xvfb xauth weston \
+            libx11-6 libxext6 libxrandr2 libxcursor1 libxi6 libxfixes3 libxss1 libxtst6 \
+            libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0 libdecor-0-0
+          dpkg-query -W libxkbcommon0 libwayland-client0 mesa-vulkan-drivers weston
+          ls /usr/share/vulkan/icd.d
+          # The manifest's name moves between Mesa releases (lvp_icd.json, lvp_icd.x86_64.json)
+          echo "VK_DRIVER_FILES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -n 1)" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Workaround Zig 0.16.0 ZIP unpack failure
+        # https://codeberg.org/ziglang/zig/issues/31964
+        run: mkdir -p "${ZIG_GLOBAL_CACHE_DIR}/tmp"
+
+      - name: Build test-fizzy
+        run: zig build test-fizzy --summary all -- --list
+
+      - name: Run test-fizzy on X11 (Xvfb)
+        if: matrix.video == 'x11'
+        env:
+          SDL_VIDEO_DRIVER: x11
+        run: |
+          xvfb-run -a -s "-screen 0 1280x1024x24" vulkaninfo --summary
+          xvfb-run -a -s "-screen 0 1280x1024x24" zig build test-fizzy --summary all -- --require-gpu vulkan
+
+      - name: Run test-fizzy on Wayland (headless weston)
+        if: matrix.video == 'wayland'
+        env:
+          SDL_VIDEO_DRIVER: wayland
+          WAYLAND_DISPLAY: wayland-fizzy
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless --socket="$WAYLAND_DISPLAY" --idle-time=0 &
+          weston_pid=$!
+          for i in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+          vulkaninfo --summary
+          zig build test-fizzy --summary all -- --require-gpu vulkan
+          kill "$weston_pid"
+
+  # Do GitHub's hosted macOS runners have a Metal device? The probe says, and the suite requires
+  # Metal wherever the probe found one, so a runner with Metal can't skip the Metal tests. (On
+  # macos-14, MTLCreateSystemDefaultDevice() is nil from a command-line tool though
+  # MTLCopyAllDevices() lists the paravirtual GPU, and SDL's Metal driver works; hence the list.)
+  test-fizzy-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Workaround Zig 0.16.0 ZIP unpack failure
+        # https://codeberg.org/ziglang/zig/issues/31964
+        run: mkdir -p "${ZIG_GLOBAL_CACHE_DIR}/tmp"
+
+      - name: Displays
+        run: |
+          sw_vers
+          uname -m
+          system_profiler SPDisplaysDataType
+
+      - name: Metal probe
+        id: probe
+        run: |
+          cat > metal_probe.m <<'EOF'
+          #import <Foundation/Foundation.h>
+          #import <Metal/Metal.h>
+          #include <stdio.h>
+          int main(void)
+          {
+              @autoreleasepool {
+                  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+                  NSArray<id<MTLDevice>> *all = MTLCopyAllDevices();
+                  printf("MTLCreateSystemDefaultDevice: %s\n", device ? device.name.UTF8String : "nil");
+                  printf("MTLCopyAllDevices: %lu\n", (unsigned long)all.count);
+                  for (id<MTLDevice> d in all) {
+                      printf("  %s (low power: %d, headless: %d)\n", d.name.UTF8String, d.lowPower, d.headless);
+                  }
+                  return all.count > 0 ? 0 : 1;
+              }
+          }
+          EOF
+          clang -fobjc-arc metal_probe.m -framework Foundation -framework Metal -o metal_probe
+          if ./metal_probe; then
+            echo "args=--require-gpu metal" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::${{ matrix.os }}: no Metal device"
+          fi
+
+      - name: Run test-fizzy
+        run: zig build test-fizzy --summary all -- ${{ steps.probe.outputs.args }}

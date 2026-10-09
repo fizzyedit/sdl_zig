@@ -171,4 +171,67 @@ pub fn build(b: *std.Build) !void {
     const run_example = b.addRunArtifact(example);
     const run_step = b.step("run-example", "Run the example app");
     run_step.dependOn(&run_example.step);
+
+    // fizzyedit/SDL's suites for fizzy's patches, on SDL's own test harness. Built only by this
+    // step, against the library above; nothing here is installed or reaches a consumer's build.
+    const sdl_test = b.addLibrary(.{
+        .name = "SDL3_test",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    sdl_test.root_module.addIncludePath(upstream.path("include"));
+    sdl_test.root_module.addCSourceFiles(.{
+        .files = &sdl_test_sources,
+        .root = upstream.path("src/test"),
+    });
+
+    const test_fizzy = b.addExecutable(.{
+        .name = "testfizzy",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    test_fizzy.root_module.addIncludePath(upstream.path("include"));
+    test_fizzy.root_module.addCSourceFiles(.{
+        .files = &fizzy_test_sources,
+        .root = upstream.path("test"),
+    });
+    test_fizzy.root_module.linkLibrary(sdl_test);
+    test_fizzy.root_module.linkLibrary(lib);
+
+    // Arguments after `--` reach the runner: `--filter <suite|test>`, `--require-gpu vulkan`.
+    const run_test_fizzy = b.addRunArtifact(test_fizzy);
+    if (@hasDecl(std.Build.Step.Run, "addPassthruArgs")) {
+        // Zig after 0.16.0, which drops `b.args`
+        run_test_fizzy.addPassthruArgs();
+    } else if (b.args) |args| {
+        run_test_fizzy.addArgs(args);
+    }
+    const test_fizzy_step = b.step("test-fizzy", "Build and run fizzyedit/SDL's suites for fizzy's patches");
+    test_fizzy_step.dependOn(&run_test_fizzy.step);
 }
+
+/// SDL_test, SDL's test library (`src/test`).
+const sdl_test_sources = [_][]const u8{
+    "SDL_test_assert.c",
+    "SDL_test_common.c",
+    "SDL_test_compare.c",
+    "SDL_test_crc32.c",
+    "SDL_test_font.c",
+    "SDL_test_fuzzer.c",
+    "SDL_test_harness.c",
+    "SDL_test_log.c",
+    "SDL_test_md5.c",
+    "SDL_test_memory.c",
+};
+
+/// The runner and the suites for fizzy's patches (`test`), one suite per patch.
+const fizzy_test_sources = [_][]const u8{
+    "testfizzy.c",
+    "testautomation_fizzy_gpu.c",
+};
