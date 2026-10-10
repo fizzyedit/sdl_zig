@@ -10,8 +10,8 @@
         // `fizzy-3.4`. Pinned by commit. `.version` is still the SDL release it is based on:
         // `build.zig` reads it for the library's SO version.
         .sdl = .{
-            .url = "https://github.com/fizzyedit/SDL/archive/011a2dc5a28e9191426138f6f76b07559862be9d.tar.gz",
-            .hash = "N-V-__8AAMaj-QLJ5JN7pQJDileI_owA6_YLRwYo85SyzNim",
+            .url = "https://github.com/fizzyedit/SDL/archive/f57c7e5dd01773544d0b8e204591468eb816c0ab.tar.gz",
+            .hash = "N-V-__8AAM6l-QL68mJG30VWZOMGSvNeB10ujXPJIq4cAgsc",
             .version = "3.4.16",
         },
         .dbus = .{
