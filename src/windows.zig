@@ -7,13 +7,12 @@ const AllDrivers = root.Drivers;
 
 pub fn build(
     b: *std.Build,
+    upstream: std.Build.LazyPath,
     target: std.Target,
     lib: *std.Build.Step.Compile,
     build_config_h: *std.Build.Step.ConfigHeader,
 ) void {
     _ = target;
-
-    const upstream = b.dependency("sdl", .{});
 
     // Add the platform specific dependency include paths
     lib.root_module.addIncludePath(b.dependency("egl", .{}).path("api"));
@@ -36,12 +35,12 @@ pub fn build(
     // Add the platform specific sources
     lib.root_module.addCSourceFiles(.{
         .files = &sources.windows,
-        .root = upstream.path("src"),
+        .root = upstream.path(b, "src"),
         .flags = root.flags,
     });
 
     if (lib.linkage == .dynamic) {
-        lib.root_module.addWin32ResourceFile(.{ .file = upstream.path("src/core/windows/version.rc") });
+        lib.root_module.addWin32ResourceFile(.{ .file = upstream.path(b, "src/core/windows/version.rc") });
     }
 
     // Set the platform specific build config

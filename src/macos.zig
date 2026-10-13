@@ -7,14 +7,13 @@ const AllDrivers = root.Drivers;
 
 pub fn build(
     b: *std.Build,
+    upstream: std.Build.LazyPath,
     target: std.Target,
     lib: *std.Build.Step.Compile,
     build_config_h: *std.Build.Step.ConfigHeader,
     paths: root.SystemPaths,
 ) void {
     _ = target;
-
-    const upstream = b.dependency("sdl", .{});
 
     // Zig finds the macOS SDK itself only for the native target; an explicit `-Dtarget=*-macos`
     // (a universal build's second architecture, say) needs it passed in, as iOS always does.
@@ -51,7 +50,7 @@ pub fn build(
     const objc_flags = root.flags.* ++ [_][]const u8{"-fobjc-arc"};
     lib.root_module.addCSourceFiles(.{
         .files = &(sources.cocoa ++ sources.apple ++ sources.darwin ++ sources.mac ++ sources.unix ++ sources.pthread),
-        .root = upstream.path("src"),
+        .root = upstream.path(b, "src"),
         .flags = &objc_flags,
     });
 

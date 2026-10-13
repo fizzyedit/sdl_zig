@@ -4,14 +4,13 @@ const root = @import("../build.zig");
 
 pub fn build(
     b: *std.Build,
+    upstream: std.Build.LazyPath,
     target: std.Target,
     lib: *std.Build.Step.Compile,
     build_config_h: *std.Build.Step.ConfigHeader,
     paths: root.SystemPaths,
 ) void {
     _ = target;
-
-    const upstream = b.dependency("sdl", .{});
 
     // The iOS SDK is not bundled with Zig, so its headers and frameworks have to be passed in.
     const SystemPaths = root.SystemPaths;
@@ -47,7 +46,7 @@ pub fn build(
     const objc_flags = root.flags.* ++ [_][]const u8{"-fobjc-arc"};
     lib.root_module.addCSourceFiles(.{
         .files = &(sources.uikit ++ sources.apple ++ sources.pthread),
-        .root = upstream.path("src"),
+        .root = upstream.path(b, "src"),
         .flags = &objc_flags,
     });
 

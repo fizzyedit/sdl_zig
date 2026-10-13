@@ -7,12 +7,11 @@ const AllDrivers = root.Drivers;
 
 pub fn build(
     b: *std.Build,
+    upstream: std.Build.LazyPath,
     target: std.Target,
     lib: *std.Build.Step.Compile,
     build_config_h: *std.Build.Step.ConfigHeader,
 ) void {
-    const upstream = b.dependency("sdl", .{});
-
     // Provide the platform specific dependency include paths
     {
         // Set up the config include write file step
@@ -513,7 +512,7 @@ pub fn build(
     // Add the platform specific SDL sources
     lib.root_module.addCSourceFiles(.{
         .files = &(sources.unix ++ sources.unix_dialog ++ sources.unix_tray ++ sources.linux ++ sources.x11 ++ sources.pthread),
-        .root = upstream.path("src"),
+        .root = upstream.path(b, "src"),
         .flags = root.flags,
     });
 

@@ -30,8 +30,13 @@ pub const SystemPaths = struct {
 };
 
 pub fn build(b: *std.Build) !void {
-    // Get the upstream source and build options
-    const upstream = b.dependency("sdl", .{});
+    // Get the upstream source and build options. A package that patches SDL hands in its patched
+    // tree; it must be the release `sdl`'s `.version` names, which is the library's SO version.
+    const upstream = b.option(
+        std.Build.LazyPath,
+        "sdl_source",
+        "SDL source tree to build instead of the `sdl` dependency, e.g. a patched copy of it",
+    ) orelse b.dependency("sdl", .{}).path("");
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -79,7 +84,7 @@ pub fn build(b: *std.Build) !void {
     switch (linkage) {
         .dynamic => {
             lib.root_module.addCMacro("DLL_EXPORT", "1");
-            lib.setVersionScript(upstream.path("src/dynapi/SDL_dynapi.sym"));
+            lib.setVersionScript(upstream.path(b, "src/dynapi/SDL_dynapi.sym"));
         },
         .static => lib.root_module.addCMacro("SDL_STATIC_LIB", "1"),
     }
@@ -87,24 +92,24 @@ pub fn build(b: *std.Build) !void {
         "https://github.com/allyourcodebase/SDL",
         build_zon.version,
     }));
-    lib.installHeadersDirectory(upstream.path("include/SDL3"), "SDL3", .{});
+    lib.installHeadersDirectory(upstream.path(b, "include/SDL3"), "SDL3", .{});
     b.installArtifact(lib);
 
     // Set the include path
-    lib.root_module.addIncludePath(upstream.path("include"));
-    lib.root_module.addIncludePath(upstream.path("src"));
-    lib.root_module.addIncludePath(upstream.path("src/video/khronos"));
+    lib.root_module.addIncludePath(upstream.path(b, "include"));
+    lib.root_module.addIncludePath(upstream.path(b, "src"));
+    lib.root_module.addIncludePath(upstream.path(b, "src/video/khronos"));
 
     // Compile the generic sources
     lib.root_module.addCSourceFiles(.{
         .files = &sources.generic,
-        .root = upstream.path("src"),
+        .root = upstream.path(b, "src"),
         .flags = flags,
     });
 
     if (default_target_config) {
         const build_config_h = b.addConfigHeader(.{
-            .style = .{ .cmake = upstream.path("include/build_config/SDL_build_config.h.cmake") },
+            .style = .{ .cmake = upstream.path(b, "include/build_config/SDL_build_config.h.cmake") },
             .include_path = "SDL_build_config.h",
         }, .{
             // Generic audio drivers
@@ -131,10 +136,10 @@ pub fn build(b: *std.Build) !void {
             .linux => if (target.result.abi.isAndroid())
                 android.build(b, target.result, lib, build_config_h, system_paths)
             else
-                linux.build(b, target.result, lib, build_config_h),
-            .windows => windows.build(b, target.result, lib, build_config_h),
-            .macos => macos.build(b, target.result, lib, build_config_h, system_paths),
-            .ios => ios.build(b, target.result, lib, build_config_h, system_paths),
+                linux.build(b, upstream, target.result, lib, build_config_h),
+            .windows => windows.build(b, upstream, target.result, lib, build_config_h),
+            .macos => macos.build(b, upstream, target.result, lib, build_config_h, system_paths),
+            .ios => ios.build(b, upstream, target.result, lib, build_config_h, system_paths),
             else => @panic("target has no default config"),
         }
     }
@@ -149,8 +154,8 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     translate_c.defineCMacro("USING_GENERATED_CONFIG_H", "1");
-    translate_c.addIncludePath(upstream.path("include"));
-    translate_c.addIncludePath(upstream.path("src/video/khronos"));
+    translate_c.addIncludePath(upstream.path(b, "include"));
+    translate_c.addIncludePath(upstream.path(b, "src/video/khronos"));
     const module = translate_c.addModule("sdl3");
     module.linkLibrary(lib);
 
