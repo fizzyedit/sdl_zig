@@ -100,9 +100,19 @@ pub fn build(b: *std.Build) !void {
     lib.root_module.addIncludePath(upstream.path(b, "src"));
     lib.root_module.addIncludePath(upstream.path(b, "src/video/khronos"));
 
-    // Compile the generic sources
+    // Compile the generic sources. Not the Linux core for Windows: SDL's own build compiles it only
+    // on Linux, and `core/linux/SDL_dbus.c` includes <unistd.h> before its guard, which MSVC does
+    // not have (MinGW does, which is why a windows-gnu build never noticed).
+    const all_generic: []const []const u8 = &sources.generic;
+    const generic = if (target.result.os.tag == .windows) blk: {
+        var keep: std.ArrayList([]const u8) = .empty;
+        for (all_generic) |file| {
+            if (!std.mem.startsWith(u8, file, "core/linux/")) keep.append(b.allocator, file) catch @panic("OOM");
+        }
+        break :blk keep.items;
+    } else all_generic;
     lib.root_module.addCSourceFiles(.{
-        .files = &sources.generic,
+        .files = generic,
         .root = upstream.path(b, "src"),
         .flags = flags,
     });
